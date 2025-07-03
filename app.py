@@ -36,21 +36,20 @@ def get_buses(stop_id):
                 if 'min' in est.lower():
                     try:
                         minutes = int(est.split()[0])
-                        time_str = (now + timedelta(minutes=minutes)).strftime('%H:%M')
+                        time_str = (now + timedelta(minutes=minutes)).strftime('%-I:%M %p')
                     except:
                         continue
                 elif est.lower() == 'due':
                     minutes = 0
-                    time_str = now.strftime('%H:%M')
+                    time_str = now.strftime('%-I:%M %p')
                 else:
-                    # fallback: calculate minutes from scheduled time
                     try:
                         sched_time = datetime.strptime(sched, "%H:%M")
                         sched_time = nz_tz.localize(sched_time.replace(year=now.year, month=now.month, day=now.day))
                         if sched_time < now:
                             sched_time += timedelta(days=1)
                         minutes = int((sched_time - now).total_seconds() / 60)
-                        time_str = sched_time.strftime('%H:%M')
+                        time_str = sched_time.strftime('%-I:%M %p')
                     except:
                         continue
 
@@ -72,7 +71,7 @@ def buses():
         if b['route'] in {'14', '83', '84', '32x'}
         and isinstance(b['min'], int)
         and b['min'] > 4
-    ][:8]  # updated to 8 buses
+    ][:8]
 
     html = '''
     <html>
@@ -80,13 +79,40 @@ def buses():
       <title>Bus Checker</title>
       <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
       <style>
-        body { font-family: sans-serif; padding: 1em; background: #f7f7f7; color: #222; font-size: 18px; }
-        h2 { margin-top: 1.5em; font-size: 1.2em; }
-        ul { list-style: none; padding-left: 0; }
-        li { margin: 0.5em 0; background: #fff; padding: 0.75em 1em; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        body {
+          font-family: sans-serif;
+          padding: 1em;
+          background: #f7f7f7;
+          color: #222;
+          font-size: 14px;
+        }
+        h2 {
+          margin-top: 1.5em;
+          font-size: 1.2em;
+        }
+        ul {
+          list-style: none;
+          padding-left: 0;
+        }
+        li {
+          margin: 0.5em 0;
+          background: #fff;
+          padding: 0.75em 1em;
+          border-radius: 8px;
+          box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        li strong {
+          font-weight: bold;
+        }
         button {
-          display: block; margin: 1em auto; padding: 10px 20px; font-size: 16px;
-          background: #28a745; color: white; border: none; border-radius: 6px;
+          display: block;
+          margin: 1em auto;
+          padding: 10px 20px;
+          font-size: 16px;
+          background: #28a745;
+          color: white;
+          border: none;
+          border-radius: 6px;
         }
       </style>
     </head>
@@ -96,14 +122,14 @@ def buses():
       <h2>Willis Street</h2>
       <ul>
         {% for b in s7709 %}
-          <li>{{b.route}}: {{b.min}} minutes away (scheduled for {{b.time}})</li>
+          <li><strong>{{b.route}}</strong>: {{b.min}} minutes away (scheduled for {{b.time}})</li>
         {% endfor %}
       </ul>
 
       <h2>Manners Street</h2>
       <ul>
         {% for b in s5006 %}
-          <li>{{b.route}}: {{b.min}} minutes away (scheduled for {{b.time}})</li>
+          <li><strong>{{b.route}}</strong>: {{b.min}} minutes away (scheduled for {{b.time}})</li>
         {% endfor %}
       </ul>
     </body>
