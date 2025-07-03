@@ -2,8 +2,10 @@ from flask import Flask, render_template_string
 import requests
 from bs4 import BeautifulSoup
 from datetime import datetime, timedelta
+import pytz
 
 app = Flask(__name__)
+nz_tz = pytz.timezone('Pacific/Auckland')
 
 def get_buses(stop_id):
     try:
@@ -28,27 +30,30 @@ def get_buses(stop_id):
                 est = tds[4].text.strip()
                 sched = tds[2].text.strip()
 
+                now = datetime.now(tz=nz_tz)
+
                 # Use estimated time if available
                 if 'min' in est.lower():
                     try:
                         minutes = int(est.split()[0])
+                        time_str = (now + timedelta(minutes=minutes)).strftime('%H:%M')
                     except:
                         continue
                 elif est.lower() == 'due':
                     minutes = 0
+                    time_str = now.strftime('%H:%M')
                 else:
                     # fallback: calculate minutes from scheduled time
                     try:
-                        now = datetime.now()
                         sched_time = datetime.strptime(sched, "%H:%M")
-                        sched_time = sched_time.replace(year=now.year, month=now.month, day=now.day)
+                        sched_time = nz_tz.localize(sched_time.replace(year=now.year, month=now.month, day=now.day))
                         if sched_time < now:
                             sched_time += timedelta(days=1)
                         minutes = int((sched_time - now).total_seconds() / 60)
+                        time_str = sched_time.strftime('%H:%M')
                     except:
                         continue
 
-                time_str = (datetime.now() + timedelta(minutes=minutes)).strftime('%H:%M')
                 buses.append({'route': route, 'min': minutes, 'time': time_str})
 
         if not buses:
@@ -67,7 +72,7 @@ def buses():
         if b['route'] in {'14', '83', '84', '32x'}
         and isinstance(b['min'], int)
         and b['min'] > 4
-    ][:3]
+    ][:8]  # updated to 8 buses
 
     html = '''
     <html>
