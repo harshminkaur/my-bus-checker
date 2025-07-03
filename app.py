@@ -9,11 +9,19 @@ def get_buses(stop_id):
     try:
         url = f'https://rti-anywhere.net/stop/{stop_id}/'
         resp = requests.get(url, timeout=10)
-        html = resp.text[:1000]  # For debug if scraping fails
         soup = BeautifulSoup(resp.text, 'html.parser')
-        rows = soup.select('table#stoptimetable tbody tr')
-        buses = []
+        table = soup.select_one('table#stoptimetable tbody')
 
+        # Debug: Check if table exists and has rows
+        if table:
+            rows = table.find_all('tr')
+            debug_html = str(table)[:1000]  # show first 1000 chars of table
+            if not rows:
+                return [{'route': 'No rows found', 'min': '-', 'time': debug_html}]
+        else:
+            return [{'route': 'No table found', 'min': '-', 'time': 'table#stoptimetable tbody missing'}]
+
+        buses = []
         for row in rows:
             tds = row.find_all('td')
             if len(tds) >= 5:
@@ -33,7 +41,7 @@ def get_buses(stop_id):
                 buses.append({'route': route, 'min': minutes, 'time': time_str})
 
         if not buses:
-            return [{'route': 'No data', 'min': '-', 'time': html}]
+            return [{'route': 'No data parsed', 'min': '-', 'time': debug_html}]
         return buses
 
     except Exception as e:
