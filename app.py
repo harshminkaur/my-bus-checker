@@ -96,14 +96,14 @@ def buses():
       <h2>Willis Street</h2>
       <ul>
         {% for b in s7709 %}
-          <li><strong>Route {{b.route}}</strong>: {{b.min}} min ({{b.time}})</li>
+          <li>{{b.route}}: {{b.min}} minutes away (scheduled for {{b.time}})</li>
         {% endfor %}
       </ul>
 
       <h2>Manners Street</h2>
       <ul>
         {% for b in s5006 %}
-          <li><strong>Route {{b.route}}</strong>: {{b.min}} min ({{b.time}})</li>
+          <li>{{b.route}}: {{b.min}} minutes away (scheduled for {{b.time}})</li>
         {% endfor %}
       </ul>
     </body>
