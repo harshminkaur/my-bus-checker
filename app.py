@@ -12,14 +12,12 @@ def get_buses(stop_id):
         soup = BeautifulSoup(resp.text, 'html.parser')
         table = soup.select_one('table#stoptimetable tbody')
 
-        # Debug: Check if table exists and has rows
-        if table:
-            rows = table.find_all('tr')
-            debug_html = str(table)[:1000]  # show first 1000 chars of table
-            if not rows:
-                return [{'route': 'No rows found', 'min': '-', 'time': debug_html}]
-        else:
+        if not table:
             return [{'route': 'No table found', 'min': '-', 'time': 'table#stoptimetable tbody missing'}]
+
+        rows = table.find_all('tr')
+        if not rows:
+            return [{'route': 'No rows found', 'min': '-', 'time': str(table)[:1000]}]
 
         buses = []
         for row in rows:
@@ -27,21 +25,34 @@ def get_buses(stop_id):
             if len(tds) >= 5:
                 route_tag = tds[0].find('a')
                 route = route_tag.text.strip() if route_tag else tds[0].text.strip()
-                arrival = tds[4].text.strip()
-                if 'min' in arrival:
+                est = tds[4].text.strip()
+                sched = tds[2].text.strip()
+
+                # Use estimated time if available
+                if 'min' in est.lower():
                     try:
-                        minutes = int(arrival.split()[0])
+                        minutes = int(est.split()[0])
                     except:
                         continue
-                elif arrival.lower() == 'due':
+                elif est.lower() == 'due':
                     minutes = 0
                 else:
-                    continue
+                    # fallback: calculate minutes from scheduled time
+                    try:
+                        now = datetime.now()
+                        sched_time = datetime.strptime(sched, "%H:%M")
+                        sched_time = sched_time.replace(year=now.year, month=now.month, day=now.day)
+                        if sched_time < now:
+                            sched_time += timedelta(days=1)
+                        minutes = int((sched_time - now).total_seconds() / 60)
+                    except:
+                        continue
+
                 time_str = (datetime.now() + timedelta(minutes=minutes)).strftime('%H:%M')
                 buses.append({'route': route, 'min': minutes, 'time': time_str})
 
         if not buses:
-            return [{'route': 'No data parsed', 'min': '-', 'time': debug_html}]
+            return [{'route': 'No usable data', 'min': '-', 'time': str(table)[:1000]}]
         return buses
 
     except Exception as e:
