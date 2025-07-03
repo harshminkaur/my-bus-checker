@@ -9,16 +9,17 @@ def get_buses(stop_id):
     try:
         url = f'https://rti-anywhere.net/stop/{stop_id}/'
         resp = requests.get(url, timeout=10)
-        html = resp.text[:1000]  # first 1000 chars to debug if parsing fails
+        html = resp.text[:1000]  # debug preview
         soup = BeautifulSoup(resp.text, 'html.parser')
-        rows = soup.select('table tbody tr')
+        rows = soup.select('table#stoptimetable tbody tr')
         buses = []
 
         for row in rows:
-            cols = row.find_all('td')
-            if len(cols) >= 2:
-                route = cols[0].text.strip()
-                arrival = cols[1].text.strip()
+            tds = row.find_all('td')
+            if len(tds) >= 2:
+                route_tag = tds[0].find('a')
+                route = route_tag.text.strip() if route_tag else tds[0].text.strip()
+                arrival = tds[-1].text.strip()
                 if 'min' in arrival:
                     try:
                         minutes = int(arrival.split()[0])
@@ -61,20 +62,21 @@ def buses():
         li { margin: 0.5em 0; background: #fff; padding: 0.75em 1em; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
         button {
           display: block; margin: 1em auto; padding: 10px 20px; font-size: 16px;
-          background: #007bff; color: white; border: none; border-radius: 6px;
+          background: #28a745; color: white; border: none; border-radius: 6px;
         }
       </style>
     </head>
     <body>
-      <button onclick="location.reload()">🔁 Refresh</button>
-      <h2>🚌 Stop 7709 – Next 5 Buses</h2>
+      <button onclick="location.reload()">Refresh</button>
+
+      <h2>Willis Street</h2>
       <ul>
         {% for b in s7709 %}
           <li><strong>Route {{b.route}}</strong>: {{b.min}} min ({{b.time}})</li>
         {% endfor %}
       </ul>
 
-      <h2>🚌 Stop 5006 – Filtered</h2>
+      <h2>Manners Street</h2>
       <ul>
         {% for b in s5006 %}
           <li><strong>Route {{b.route}}</strong>: {{b.min}} min ({{b.time}})</li>
