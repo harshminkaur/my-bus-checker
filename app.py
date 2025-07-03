@@ -9,17 +9,17 @@ def get_buses(stop_id):
     try:
         url = f'https://rti-anywhere.net/stop/{stop_id}/'
         resp = requests.get(url, timeout=10)
-        html = resp.text[:1000]  # debug preview
+        html = resp.text[:1000]  # For debug if scraping fails
         soup = BeautifulSoup(resp.text, 'html.parser')
         rows = soup.select('table#stoptimetable tbody tr')
         buses = []
 
         for row in rows:
             tds = row.find_all('td')
-            if len(tds) >= 2:
+            if len(tds) >= 5:
                 route_tag = tds[0].find('a')
                 route = route_tag.text.strip() if route_tag else tds[0].text.strip()
-                arrival = tds[-1].text.strip()
+                arrival = tds[4].text.strip()
                 if 'min' in arrival:
                     try:
                         minutes = int(arrival.split()[0])
