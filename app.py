@@ -1,11 +1,10 @@
 from flask import Flask, render_template_string
 import requests
 from bs4 import BeautifulSoup
-from datetime import datetime, timedelta
+from datetime import datetime
 
 app = Flask(__name__)
 
-# Replace these with your actual stop URLs and route filters
 STOP_1_URL = "https://rti-anywhere.net/stop/7709/"
 STOP_2_URL = "https://rti-anywhere.net/stop/5006/"
 STOP_2_FILTER_ROUTES = {"14", "17", "25", "83", "32", "39", "84"}
@@ -90,9 +89,9 @@ li {
 <ul>
   {% for bus in stop1_buses %}
   <li>
-    <span class="route-circle route-{{bus.route}}">{{bus.route}}</span>
-    {{bus.minutes}} minutes away
-    <div class="subtitle">Scheduled for {{bus.sched_time}}</div>
+    <span class="route-circle route-{{ bus.route_class }}">{{ bus.route }}</span>
+    {{ bus.minutes }} minutes away
+    <div class="subtitle">Scheduled for {{ bus.sched_time }}</div>
   </li>
   {% endfor %}
 </ul>
@@ -101,9 +100,9 @@ li {
 <ul>
   {% for bus in stop2_buses %}
   <li>
-    <span class="route-circle route-{{bus.route}}">{{bus.route}}</span>
-    {{bus.minutes}} minutes away
-    <div class="subtitle">Scheduled for {{bus.sched_time}}</div>
+    <span class="route-circle route-{{ bus.route_class }}">{{ bus.route }}</span>
+    {{ bus.minutes }} minutes away
+    <div class="subtitle">Scheduled for {{ bus.sched_time }}</div>
   </li>
   {% endfor %}
 </ul>
@@ -124,59 +123,58 @@ setInterval(update, 60000);
 </html>
 """
 
+def normalize_route(route_str):
+    """Lowercase, strip, remove trailing 'x' for CSS class"""
+    route_str = route_str.strip().lower()
+    if route_str.endswith("x"):
+        route_str = route_str[:-1]
+    return route_str
+
 def parse_stop(url, filter_routes=None, min_minutes=0, max_buses=None):
-    """
-    Fetch and parse buses from the RTI Anywhere stop page.
-    filter_routes: set of routes to include (None = all)
-    min_minutes: exclude buses arriving sooner than this many minutes
-    max_buses: limit to this many results
-    Returns list of dicts with keys: route, minutes, sched_time
-    """
     r = requests.get(url)
     soup = BeautifulSoup(r.text, "html.parser")
-
-    # Find the table rows for upcoming buses
     rows = soup.select("table#stoptimetable tbody tr")
     buses = []
-
     now = datetime.now()
 
     for row in rows:
         try:
             route_tag = row.find("td")
             route = route_tag.get_text(strip=True)
+            route_class = normalize_route(route)
 
+            # Debug print to see what routes we find on stop 1
+            print(f"Stop {url} found route: '{route}'")
+
+            # Filter routes if given
             if filter_routes and route not in filter_routes:
                 continue
 
-            # Estimated time (minutes) is in last <td>
             est_td = row.find_all("td")[-1]
             est_text = est_td.get_text(strip=True)
             if est_text == "" or est_text.lower() == "no data":
                 continue
 
-            # Convert "X min" to int minutes
             if "min" in est_text:
                 minutes = int(est_text.split()[0])
             else:
-                # If no "min", try to parse as time difference (rare)
                 minutes = 0
 
             if minutes < min_minutes:
                 continue
 
-            sched_td = row.find_all("td")[2]  # Scheduled time is 3rd td
+            sched_td = row.find_all("td")[2]  # Scheduled time (3rd column)
             sched_str = sched_td.get_text(strip=True)
-
-            # Parse sched_str (e.g. "06:15") into formatted time with am/pm
             sched_dt = datetime.strptime(sched_str, "%H:%M")
-            sched_time = sched_dt.strftime("%-I:%M %p").lower()  # 12hr format am/pm lowercase
+            sched_time = sched_dt.strftime("%-I:%M %p").lower()
 
             buses.append({
                 "route": route,
+                "route_class": route_class,
                 "minutes": minutes,
                 "sched_time": sched_time
             })
+
         except Exception:
             continue
 
@@ -187,12 +185,8 @@ def parse_stop(url, filter_routes=None, min_minutes=0, max_buses=None):
 
 @app.route("/")
 def index():
-    # Get first stop next 5 buses, no minimum filter
     stop1_buses = parse_stop(STOP_1_URL, max_buses=5)
-
-    # Get second stop next 8 buses on filtered routes, exclude less than 6 min away
-    stop2_buses = parse_stop(STOP_2_URL, max_buses=8)
-
+    stop2_buses = parse_stop(STOP_2_URL, filter_routes=STOP_2_FILTER_ROUTES, min_minutes=6, max_buses=8)
     return render_template_string(HTML_TEMPLATE, stop1_buses=stop1_buses, stop2_buses=stop2_buses)
 
 if __name__ == "__main__":
