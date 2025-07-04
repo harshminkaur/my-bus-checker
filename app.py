@@ -107,31 +107,70 @@ def buses():
           border-radius: 8px;
           box-shadow: 0 2px 5px rgba(0,0,0,0.1);
         }
-        li strong {
+        .route-circle {
+          display: inline-block;
+          width: 28px;
+          height: 28px;
+          line-height: 28px;
+          text-align: center;
+          border-radius: 50%;
+          background: #28a745;
+          color: white;
           font-weight: bold;
+          margin-right: 0.6em;
+          font-size: 13px;
+        }
+        .subtitle {
+          font-size: 12px;
+          color: #666;
+          margin-top: 4px;
         }
         .updated {
           text-align: center;
-          margin: 1em 0;
+          margin: 0.5em 0 0.3em 0;
           font-size: 13px;
           color: #666;
         }
       </style>
+      <script>
+        // Live update timer
+        document.addEventListener('DOMContentLoaded', function() {
+          const el = document.getElementById('last-updated');
+          const started = new Date().getTime();
+          function update() {
+            const now = new Date().getTime();
+            const diffMin = Math.floor((now - started) / 60000);
+            el.textContent = "Last updated " + diffMin + " minute" + (diffMin !== 1 ? "s" : "") + " ago";
+          }
+          update();
+          setInterval(update, 60000);
+        });
+      </script>
     </head>
     <body>
-      <div class="updated">Last updated {{minutes_ago}} minute{{ 's' if minutes_ago != 1 else '' }} ago</div>
+      <div class="updated" id="last-updated">
+        Last updated {{minutes_ago}} minute{{ 's' if minutes_ago != 1 else '' }} ago
+      </div>
 
       <h2>Willis Street</h2>
       <ul>
         {% for b in s7709 %}
-          <li><strong>{{b.route}}</strong>: {{b.min}} minutes away (scheduled for {{b.time}})</li>
+          <li>
+            <span class="route-circle">{{b.route}}</span>
+            {{b.min}} minutes away
+            <div class="subtitle">Scheduled for {{b.time}}</div>
+          </li>
         {% endfor %}
       </ul>
 
       <h2>Manners Street</h2>
       <ul>
         {% for b in s5006 %}
-          <li><strong>{{b.route}}</strong>: {{b.min}} minutes away (scheduled for {{b.time}})</li>
+          <li>
+            <span class="route-circle">{{b.route}}</span>
+            {{b.min}} minutes away
+            <div class="subtitle">Scheduled for {{b.time}}</div>
+          </li>
         {% endfor %}
       </ul>
     </body>
