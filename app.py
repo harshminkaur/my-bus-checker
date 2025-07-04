@@ -15,13 +15,15 @@ def get_buses(stop_id):
         table = soup.select_one('table#stoptimetable tbody')
 
         if not table:
-            return [{'route': 'No table found', 'min': '-', 'time': 'table#stoptimetable tbody missing'}]
+            return [{'route': 'No table found', 'min': '-', 'time': 'table#stoptimetable tbody missing'}], datetime.now(tz=nz_tz)
 
         rows = table.find_all('tr')
         if not rows:
-            return [{'route': 'No rows found', 'min': '-', 'time': str(table)[:1000]}]
+            return [{'route': 'No rows found', 'min': '-', 'time': str(table)[:1000]}], datetime.now(tz=nz_tz)
 
         buses = []
+        now = datetime.now(tz=nz_tz)
+
         for row in rows:
             tds = row.find_all('td')
             if len(tds) >= 5:
@@ -30,18 +32,16 @@ def get_buses(stop_id):
                 est = tds[4].text.strip()
                 sched = tds[2].text.strip()
 
-                now = datetime.now(tz=nz_tz)
-
                 # Use estimated time if available
                 if 'min' in est.lower():
                     try:
                         minutes = int(est.split()[0])
-                        time_str = (now + timedelta(minutes=minutes)).strftime('%-I:%M %p')
+                        time_str = (now + timedelta(minutes=minutes)).strftime('%-I:%M %p').lower()
                     except:
                         continue
                 elif est.lower() == 'due':
                     minutes = 0
-                    time_str = now.strftime('%-I:%M %p')
+                    time_str = now.strftime('%-I:%M %p').lower()
                 else:
                     try:
                         sched_time = datetime.strptime(sched, "%H:%M")
@@ -49,29 +49,35 @@ def get_buses(stop_id):
                         if sched_time < now:
                             sched_time += timedelta(days=1)
                         minutes = int((sched_time - now).total_seconds() / 60)
-                        time_str = sched_time.strftime('%-I:%M %p')
+                        time_str = sched_time.strftime('%-I:%M %p').lower()
                     except:
                         continue
 
                 buses.append({'route': route, 'min': minutes, 'time': time_str})
 
         if not buses:
-            return [{'route': 'No usable data', 'min': '-', 'time': str(table)[:1000]}]
-        return buses
+            return [{'route': 'No usable data', 'min': '-', 'time': str(table)[:1000]}], now
+        return buses, now
 
     except Exception as e:
-        return [{'route': 'Error', 'min': '-', 'time': str(e)}]
+        return [{'route': 'Error', 'min': '-', 'time': str(e)}], datetime.now(tz=nz_tz)
 
 @app.route('/')
 @app.route('/buses')
 def buses():
-    s7709 = get_buses('7709')[:5]
+    s7709, updated_time = get_buses('7709')
+    s5006_raw, _ = get_buses('5006')
+
+    s7709 = s7709[:5]
     s5006 = [
-        b for b in get_buses('5006')
+        b for b in s5006_raw
         if b['route'] in {'14', '83', '84', '32x'}
         and isinstance(b['min'], int)
-        and b['min'] > 4
+        and b['min'] >= 6
     ][:8]
+
+    now = datetime.now(tz=nz_tz)
+    minutes_ago = int((now - updated_time).total_seconds() / 60)
 
     html = '''
     <html>
@@ -104,20 +110,16 @@ def buses():
         li strong {
           font-weight: bold;
         }
-        button {
-          display: block;
-          margin: 1em auto;
-          padding: 10px 20px;
-          font-size: 16px;
-          background: #28a745;
-          color: white;
-          border: none;
-          border-radius: 6px;
+        .updated {
+          text-align: center;
+          margin: 1em 0;
+          font-size: 13px;
+          color: #666;
         }
       </style>
     </head>
     <body>
-      <button onclick="location.reload()">Refresh</button>
+      <div class="updated">Last updated {{minutes_ago}} minute{{ 's' if minutes_ago != 1 else '' }} ago</div>
 
       <h2>Willis Street</h2>
       <ul>
@@ -135,7 +137,7 @@ def buses():
     </body>
     </html>
     '''
-    return render_template_string(html, s7709=s7709, s5006=s5006)
+    return render_template_string(html, s7709=s7709, s5006=s5006, minutes_ago=minutes_ago)
 
 if __name__ == '__main__':
     app.run()
