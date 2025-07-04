@@ -191,7 +191,7 @@ def index():
     stop1_buses = parse_stop(STOP_1_URL, max_buses=5)
 
     # Get second stop next 8 buses on filtered routes, exclude less than 6 min away
-    stop2_buses = parse_stop(STOP_2_URL, filter_routes=STOP_2_FILTER_ROUTES, min_minutes=6, max_buses=8)
+    stop2_buses = parse_stop(STOP_2_URL, max_buses=8)
 
     return render_template_string(HTML_TEMPLATE, stop1_buses=stop1_buses, stop2_buses=stop2_buses)
 
