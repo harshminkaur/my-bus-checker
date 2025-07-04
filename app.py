@@ -153,6 +153,7 @@ def index():
     stop1_buses = parse_stop(STOP_1_URL, max_buses=5)
     stop2_buses = parse_stop(STOP_2_URL, filter_routes=STOP_2_FILTER_ROUTES, min_minutes=6, max_buses=8)
 
+
     print("Stop 1 buses:", stop1_buses)
     print("Stop 2 buses:", stop2_buses)
 
