@@ -136,7 +136,7 @@ def parse_stop(url, filter_routes=None, min_minutes=0, max_buses=None):
             route_tag = row.find("td")
             route_raw = route_tag.get_text(strip=True)
             route = route_raw.strip().upper()
-          print("Found route:", route)
+            print("Found route:", route)
 
             if filter_routes:
                 normalized_filters = {r.strip().upper() for r in filter_routes}
