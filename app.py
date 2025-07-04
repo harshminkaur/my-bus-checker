@@ -123,10 +123,7 @@ setInterval(update, 60000);
 """
 
 def normalize_route(route_str):
-    route_str = route_str.strip().lower()
-    if route_str.endswith("x"):
-        route_str = route_str[:-1]
-    return route_str
+    return route_str.strip().lower()
 
 def parse_stop(url, filter_routes=None, min_minutes=0, max_buses=None):
     r = requests.get(url)
@@ -140,8 +137,10 @@ def parse_stop(url, filter_routes=None, min_minutes=0, max_buses=None):
             route_raw = route_tag.get_text(strip=True)
             route = route_raw.strip().upper()
 
-            if filter_routes and route not in filter_routes:
-                continue
+            if filter_routes:
+                normalized_filters = {r.strip().upper() for r in filter_routes}
+                if route not in normalized_filters:
+                    continue
 
             route_class = normalize_route(route)
 
