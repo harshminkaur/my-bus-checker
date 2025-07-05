@@ -131,4 +131,62 @@ def normalize_route(route_str):
 def parse_stop(url, filter_routes=None, min_minutes=0, max_buses=None):
     r = requests.get(url)
     if r.status_code != 200:
-        sys.stderr.write(f"Failed
+        sys.stderr.write(f"Failed to fetch {url} with status {r.status_code}\n")
+        return []
+    soup = BeautifulSoup(r.text, "html.parser")
+    rows = soup.select("table#stoptimetable tbody tr")
+    buses = []
+
+    for row in rows:
+        try:
+            route_tag = row.find("td")
+            route_raw = route_tag.get_text(strip=True)
+            route = route_raw.strip().upper()
+            route_class = normalize_route(route)
+
+            if filter_routes:
+                normalized_filters = {r.strip().upper() for r in filter_routes}
+                if route not in normalized_filters:
+                    continue
+
+            est_td = row.find_all("td")[-1]
+            est_text = est_td.get_text(strip=True)
+            if est_text == "" or est_text.lower() == "no data":
+                continue
+
+            if "min" in est_text:
+                minutes = int(est_text.split()[0])
+            else:
+                minutes = 0
+
+            if minutes < min_minutes:
+                continue
+
+            sched_td = row.find_all("td")[2]
+            sched_str = sched_td.get_text(strip=True)
+            sched_dt = datetime.strptime(sched_str, "%H:%M")
+            sched_time = sched_dt.strftime("%-I:%M %p").lower()
+
+            buses.append({
+                "route": route,
+                "route_class": route_class,
+                "minutes": minutes,
+                "sched_time": sched_time
+            })
+        except Exception as e:
+            sys.stderr.write(f"Error parsing row: {e}\n")
+            continue
+
+        if max_buses and len(buses) >= max_buses:
+            break
+
+    return buses
+
+@app.route("/")
+def index():
+    stop1_buses = parse_stop(STOP_1_URL, max_buses=5)
+    stop2_buses = parse_stop(STOP_2_URL, filter_routes=STOP_2_FILTER_ROUTES, min_minutes=6, max_buses=8)
+    return render_template_string(HTML_TEMPLATE, stop1_buses=stop1_buses, stop2_buses=stop2_buses)
+
+if __name__ == "__main__":
+    app.run(debug=True)
